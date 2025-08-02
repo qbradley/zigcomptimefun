@@ -122,22 +122,20 @@ fn parse(comptime input: []const u8, comptime options: ParseOptions) type {
                 _ = i;
 
                 switch (c) {
+                    ' ' => {},
                     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' => {
                         stack.push(c - '0');
-                    },
-                    '+' => {
-                        stack.push(stack.pop() + stack.pop());
-                    },
-                    '*' => {
-                        stack.push(stack.pop() * stack.pop());
                     },
                     else => {
                         comptime var maybe_ptr: ?*const Environment = environment;
                         inline while (maybe_ptr) |ptr| {
                             if (c == ptr.name[0]) {
                                 ptr.call(stack);
+                                break;
                             }
                             maybe_ptr = ptr.next;
+                        } else {
+                            @compileError("Unknown function '" ++ [1]u8{c} ++ "'");
                         }
                     },
                 }
