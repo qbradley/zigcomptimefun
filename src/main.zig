@@ -114,10 +114,18 @@ const Mul = Environment{
 };
 
 fn parse(comptime input: []const u8, comptime options: ParseOptions) type {
+    return parse_inner(input, &Mul, "", options);
+}
+
+fn parse_inner(comptime input: []const u8, comptime environment: ?*const Environment, comptime name: []const u8, comptime options: ParseOptions) type {
     return struct {
         const Code = input;
+        const Env = Environment{
+            .next = environment,
+            .name = name,
+            .call = @This().eval,
+        };
         fn eval(stack: *Stack) void {
-            const environment = &Mul;
             inline for (input, 0..) |c, i| {
                 _ = i;
 
@@ -149,7 +157,9 @@ fn parse(comptime input: []const u8, comptime options: ParseOptions) type {
 }
 
 pub fn main() !void {
-    const parser = parse("2 1 + *", .{});
+    const dub = parse_inner("2 *", &Mul, "d", .{});
+
+    const parser = parse_inner("2 1 + * d", &dub.Env, "", .{});
 
     var stack = Stack.init();
     stack.push(5);
