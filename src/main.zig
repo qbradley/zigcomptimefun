@@ -1,57 +1,3 @@
-const Value = struct {
-    value: i32,
-
-    fn init(value_: i32) Value {
-        return .{ .value = value_ };
-    }
-
-    fn work(self: @This()) i32 {
-        return self.value;
-    }
-};
-
-fn multiplier(Left: type, Right: type) type {
-    return struct {
-        left: Left,
-        right: Right,
-
-        fn init(left_val: Left, right_val: Right) @This() {
-            return .{ .left = left_val, .right = right_val };
-        }
-
-        fn work(self: @This()) i32 {
-            return self.left.work() * self.right.work();
-        }
-    };
-}
-
-fn adder(Left: type, Right: type) type {
-    return struct {
-        left: Left,
-        right: Right,
-
-        fn init(left_val: Left, right_val: Right) @This() {
-            return .{ .left = left_val, .right = right_val };
-        }
-
-        fn work(self: @This()) i32 {
-            return self.left.work() + self.right.work();
-        }
-    };
-}
-
-fn value(value_: i32) Value {
-    return .{ .value = value_ };
-}
-
-fn add(left: anytype, right: anytype) adder(@TypeOf(left), @TypeOf(right)) {
-    return adder(@TypeOf(left), @TypeOf(right)).init(left, right);
-}
-
-fn multiply(left: anytype, right: anytype) multiplier(@TypeOf(left), @TypeOf(right)) {
-    return multiplier(@TypeOf(left), @TypeOf(right)).init(left, right);
-}
-
 fn dumpstack(stack: []i32) void {
     std.debug.print("[", .{});
     for (stack) |item| {
@@ -101,13 +47,13 @@ fn mul_impl(stack: *Stack) void {
     stack.push(stack.pop() * stack.pop());
 }
 
-const Add = Environment{
+const Add: Environment = .{
     .next = null,
     .name = "+",
     .call = add_impl,
 };
 
-const Mul = Environment{
+const Mul: Environment = .{
     .next = &Add,
     .name = "*",
     .call = mul_impl,
@@ -120,12 +66,12 @@ fn parse(comptime input: []const u8, comptime options: ParseOptions) type {
 fn parse_inner(comptime input: []const u8, comptime environment: ?*const Environment, comptime name: []const u8, comptime options: ParseOptions) type {
     return struct {
         const Code = input;
-        const Env = Environment{
+        const Env: Environment = .{
             .next = environment,
             .name = name,
             .call = @This().eval,
         };
-        fn eval(stack: *Stack) void {
+        noinline fn eval(stack: *Stack) void {
             inline for (input, 0..) |c, i| {
                 _ = i;
 
@@ -156,26 +102,28 @@ fn parse_inner(comptime input: []const u8, comptime environment: ?*const Environ
     };
 }
 
-pub fn main() !void {
+pub fn main() !u8 {
+    var input: i32 = undefined;
+    var args = std.process.args();
+    const program = args.next();
+    _ = program;
+    if (args.next()) |arg| {
+        input = try std.fmt.parseInt(i32, arg, 10);
+    } else {
+        return error.NoArg;
+    }
+
     const dub = parse_inner("2 *", &Mul, "d", .{});
 
     const parser = parse_inner("2 1 + * d", &dub.Env, "", .{});
 
     var stack = Stack.init();
-    stack.push(5);
+    stack.push(input);
     parser.eval(&stack);
     const result = stack.pop();
 
-    std.debug.print("Evaluating '{s}'' resulted in: {}\n", .{ parser.Code, result });
-
-    const expression1 = multiply(value(3), add(value(5), value(6)));
-    const result1 = expression1.work();
-    std.debug.print("Result: {}\n", .{result1});
-
-    const expression2 = multiplier(Value, adder(Value, Value)).init(Value.init(3), adder(Value, Value).init(Value.init(1), Value.init(2)));
-
-    const result2 = expression2.work();
-    std.debug.print("Result: {}\n", .{result2});
+    //std.debug.print("Evaluating '{s}'' resulted in: {}\n", .{ parser.Code, result });
+    return @intCast(result);
 }
 
 test "simple test" {}
