@@ -64,53 +64,66 @@ const ParseOptions = struct {
     debug: bool = false,
 };
 
+const Stack = struct {
+    stack: [16]i32,
+    top: usize,
+
+    pub fn init() @This() {
+        return .{
+            .stack = undefined,
+            .top = 0,
+        };
+    }
+
+    pub fn push(self: *@This(), new_value: i32) void {
+        const top = self.top;
+        self.stack[top] = new_value;
+        self.top = top + 1;
+    }
+
+    pub fn pop(self: *@This()) i32 {
+        self.top -= 1;
+        return self.stack[self.top];
+    }
+};
+
 fn parse(comptime input: []const u8, comptime options: ParseOptions) type {
     return struct {
         const Code = input;
-        fn eval(start: i32) i32 {
-            var stackpointer: usize = 1;
-            var stack: [16]i32 = undefined;
-            stack[0] = start;
+        fn eval(stack: *Stack) void {
             inline for (input, 0..) |c, i| {
                 _ = i;
 
                 switch (c) {
                     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' => {
-                        const result = c - '0';
-                        stack[stackpointer] = result;
-                        stackpointer += 1;
+                        stack.push(c - '0');
                     },
                     '+' => {
-                        const value1 = stack[stackpointer - 1];
-                        const value2 = stack[stackpointer - 2];
-                        const result = value1 + value2;
-                        stack[stackpointer - 2] = result;
-                        stackpointer -= 1;
+                        stack.push(stack.pop() + stack.pop());
                     },
                     '*' => {
-                        const value1 = stack[stackpointer - 1];
-                        const value2 = stack[stackpointer - 2];
-                        const result = value1 * value2;
-                        stack[stackpointer - 2] = result;
-                        stackpointer -= 1;
+                        stack.push(stack.pop() * stack.pop());
                     },
                     else => {},
                 }
 
                 if (options.debug) {
-                    dumpstack(stack[0..stackpointer]);
+                    dumpstack(stack.stack[0..stack.top]);
                 }
             }
-
-            return stack[stackpointer - 1];
         }
     };
 }
 
 pub fn main() !void {
     const parser = parse("2 1 + *", .{});
-    const expression3 = parser.eval(5);
-    std.debug.print("Evaluating '{s}'' resulted in: {}\n", .{ parser.Code, expression3 });
+
+    var stack = Stack.init();
+    stack.push(5);
+    parser.eval(&stack);
+    const result = stack.pop();
+
+    std.debug.print("Evaluating '{s}'' resulted in: {}\n", .{ parser.Code, result });
 
     const expression1 = multiply(value(3), add(value(5), value(6)));
     const result1 = expression1.work();
@@ -118,8 +131,8 @@ pub fn main() !void {
 
     const expression2 = multiplier(Value, adder(Value, Value)).init(Value.init(3), adder(Value, Value).init(Value.init(1), Value.init(2)));
 
-    const result = expression2.work();
-    std.debug.print("Result: {}\n", .{result});
+    const result2 = expression2.work();
+    std.debug.print("Result: {}\n", .{result2});
 }
 
 test "simple test" {}
