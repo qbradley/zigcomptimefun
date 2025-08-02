@@ -87,10 +87,37 @@ const Stack = struct {
     }
 };
 
+const Environment = struct {
+    next: ?*const @This(),
+    name: []const u8,
+    call: fn (*Stack) void,
+};
+
+fn add_impl(stack: *Stack) void {
+    stack.push(stack.pop() + stack.pop());
+}
+
+fn mul_impl(stack: *Stack) void {
+    stack.push(stack.pop() * stack.pop());
+}
+
+const Add = Environment{
+    .next = null,
+    .name = "+",
+    .call = add_impl,
+};
+
+const Mul = Environment{
+    .next = &Add,
+    .name = "*",
+    .call = mul_impl,
+};
+
 fn parse(comptime input: []const u8, comptime options: ParseOptions) type {
     return struct {
         const Code = input;
         fn eval(stack: *Stack) void {
+            const environment = &Mul;
             inline for (input, 0..) |c, i| {
                 _ = i;
 
@@ -104,7 +131,15 @@ fn parse(comptime input: []const u8, comptime options: ParseOptions) type {
                     '*' => {
                         stack.push(stack.pop() * stack.pop());
                     },
-                    else => {},
+                    else => {
+                        comptime var maybe_ptr: ?*const Environment = environment;
+                        inline while (maybe_ptr) |ptr| {
+                            if (c == ptr.name[0]) {
+                                ptr.call(stack);
+                            }
+                            maybe_ptr = ptr.next;
+                        }
+                    },
                 }
 
                 if (options.debug) {
