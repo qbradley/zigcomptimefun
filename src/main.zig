@@ -60,7 +60,11 @@ fn dumpstack(stack: []i32) void {
     std.debug.print("]\n", .{});
 }
 
-fn parse(comptime input: []const u8) type {
+const ParseOptions = struct {
+    debug: bool = false,
+};
+
+fn parse(comptime input: []const u8, comptime options: ParseOptions) type {
     return struct {
         const Code = input;
         fn eval(start: i32) i32 {
@@ -93,7 +97,9 @@ fn parse(comptime input: []const u8) type {
                     else => {},
                 }
 
-                dumpstack(stack[0..stackpointer]);
+                if (options.debug) {
+                    dumpstack(stack[0..stackpointer]);
+                }
             }
 
             return stack[stackpointer - 1];
@@ -102,7 +108,7 @@ fn parse(comptime input: []const u8) type {
 }
 
 pub fn main() !void {
-    const parser = parse("2 1 + *", .{ .debug = true });
+    const parser = parse("2 1 + *", .{});
     const expression3 = parser.eval(5);
     std.debug.print("Evaluating '{s}'' resulted in: {}\n", .{ parser.Code, expression3 });
 
